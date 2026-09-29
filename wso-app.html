@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SlotIQ — Warehouse Slotting Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:       #0A1628;
+  --navy-mid:   #0F2040;
+  --navy-card:  #0D1E36;
+  --steel:      #1E3A5F;
+  --steel-2:    #162E4A;
+  --cyan:       #00D4FF;
+  --cyan-dim:   #0099BB;
+  --cyan-glow:  rgba(0,212,255,0.15);
+  --slate:      #8BA3C1;
+  --slate-dim:  #4A6A8A;
+  --snow:       #E8F0FE;
+  --white:      #ffffff;
+  --danger:     #FF4D6D;
+  --success:    #00E5A0;
+  --amber:      #FFB830;
+  --sidebar-w:  240px;
+  --topbar-h:   56px;
+}
+
+html, body { height: 100%; background: var(--navy); color: var(--snow); font-family: 'Inter', sans-serif; overflow: hidden; }
+
+/* ════════════════════════════════════════
+   LOGIN SCREEN
+════════════════════════════════════════ */
+#loginScreen {
+  display: grid;
+  grid-template-columns: 1fr 480px;
+  min-height: 100vh;
+  position: fixed; inset: 0; z-index: 100;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+#loginScreen.hiding { opacity: 0; transform: scale(0.97); pointer-events: none; }
+
+.vis {
+  position: relative; background: var(--navy-mid);
+  overflow: hidden; display: flex; flex-direction: column;
+  justify-content: flex-end; padding: 48px 52px;
+}
+.vis::after {
+  content:''; position:absolute; inset:0;
+  background: repeating-linear-gradient(to bottom,transparent 0,transparent 3px,rgba(0,0,0,.07) 3px,rgba(0,0,0,.07) 4px);
+  pointer-events:none;
+}
+#gridCanvas { position:absolute; inset:0; opacity:.55; }
+.vis-content { position:relative; z-index:2; }
+
+.badge {
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(0,212,255,.12); border:1px solid rgba(0,212,255,.3);
+  border-radius:4px; padding:5px 12px;
+  font-family:'Space Grotesk',sans-serif; font-size:11px; font-weight:500;
+  letter-spacing:.06em; color:var(--cyan); margin-bottom:20px;
+}
+.badge-dot { width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse 2s ease-in-out infinite; }
+.vis-title { font-family:'Space Grotesk',sans-serif; font-size:clamp(28px,3.5vw,44px); font-weight:700; line-height:1.12; color:var(--white); margin-bottom:16px; }
+.vis-title span { color:var(--cyan); }
+.vis-desc { font-size:14px; line-height:1.7; color:var(--slate); max-width:440px; margin-bottom:36px; }
+.stats { display:flex; gap:32px; }
+.stat-value { font-family:'Space Grotesk',sans-serif; font-size:26px; font-weight:700; color:var(--white); line-height:1; }
+.stat-value span { color:var(--cyan); font-size:18px; }
+.stat-label { font-size:11px; color:var(--slate-dim); margin-top:4px; letter-spacing:.04em; }
+
+.form-panel {
+  background:var(--navy); border-left:1px solid rgba(139,163,193,.12);
+  display:flex; flex-direction:column; justify-content:center;
+  padding:56px 52px; position:relative; overflow:hidden;
+}
+.form-panel::before {
+  content:''; position:absolute; top:0; right:0; width:200px; height:200px;
+  background:radial-gradient(circle at top right,rgba(0,212,255,.06),transparent 70%);
+  pointer-events:none;
+}
+
+.logo { display:flex; align-items:center; gap:10px; margin-bottom:48px; }
+.logo-mark {
+  width:36px;height:36px;background:var(--cyan);border-radius:6px;
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  gap:2.5px;padding:6px;
+}
+.logo-mark span { background:var(--navy);border-radius:1px;display:block; }
+.logo-mark span:nth-child(2),.logo-mark span:nth-child(5),.logo-mark span:nth-child(8) { background:rgba(10,22,40,.4); }
+.logo-text { font-family:'Space Grotesk',sans-serif; font-size:20px; font-weight:700; color:var(--white); letter-spacing:-.02em; }
+.logo-text em { font-style:normal; color:var(--cyan); }
+
+.form-heading { font-family:'Space Grotesk',sans-serif; font-size:28px; font-weight:700; color:var(--white); margin-bottom:6px; }
+.form-sub { font-size:13.5px; color:var(--slate); margin-bottom:36px; line-height:1.5; }
+
+.field { margin-bottom:20px; }
+.field label { display:block; font-size:12px; font-weight:500; color:var(--slate); margin-bottom:8px; font-family:'Space Grotesk',sans-serif; letter-spacing:.03em; }
+.input-wrap { position:relative; display:flex; align-items:center; }
+.input-icon { position:absolute; left:14px; color:var(--slate-dim); pointer-events:none; transition:color .2s; display:flex; }
+.field input {
+  width:100%; background:rgba(30,58,95,.35); border:1px solid rgba(139,163,193,.2);
+  border-radius:8px; padding:13px 14px 13px 42px; font-size:14px;
+  font-family:'Inter',sans-serif; color:var(--white); outline:none;
+  transition:border-color .2s,background .2s,box-shadow .2s;
+}
+.field input::placeholder { color:var(--slate-dim); }
+.field input:focus { border-color:var(--cyan); background:rgba(0,212,255,.05); box-shadow:0 0 0 3px var(--cyan-glow); }
+.field input:focus ~ .input-icon { color:var(--cyan); }
+.toggle-pw { position:absolute;right:14px;background:none;border:none;color:var(--slate-dim);cursor:pointer;padding:0;display:flex;transition:color .2s; }
+.toggle-pw:hover { color:var(--cyan); }
+.row-aux { display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;margin-top:-4px; }
+.check-label { display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--slate);user-select:none; }
+.check-label input[type=checkbox] { display:none; }
+.check-box { width:16px;height:16px;border:1px solid rgba(139,163,193,.35);border-radius:4px;background:rgba(30,58,95,.3);display:grid;place-items:center;transition:background .2s,border-color .2s;flex-shrink:0; }
+.check-box svg { opacity:0;transition:opacity .15s; }
+.check-label input:checked~.check-box { background:var(--cyan);border-color:var(--cyan); }
+.check-label input:checked~.check-box svg { opacity:1; }
+.forgot-link { font-size:13px;color:var(--cyan);text-decoration:none;transition:opacity .2s; }
+.forgot-link:hover { opacity:.7; }
+
+.btn-submit {
+  width:100%; padding:14px; background:var(--cyan); color:var(--navy);
+  border:none; border-radius:8px; font-family:'Space Grotesk',sans-serif;
+  font-size:15px; font-weight:600; cursor:pointer; position:relative;
+  overflow:hidden; transition:opacity .2s,transform .15s;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn-submit:hover { opacity:.9; transform:translateY(-1px); }
+.btn-submit:active { transform:translateY(0); }
+.btn-submit .btn-arrow { transition:transform .2s; }
+.btn-submit:hover .btn-arrow { transform:translateX(4px); }
+.btn-submit .spinner { display:none; width:18px;height:18px;border:2.5px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .7s linear infinite; }
+.btn-submit.loading .btn-label,.btn-submit.loading .btn-arrow { display:none; }
+.btn-submit.loading .spinner { display:block; }
+
+.error-msg { display:none;align-items:center;gap:8px;font-size:12.5px;color:var(--danger);background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.25);border-radius:6px;padding:10px 14px;margin-bottom:20px; }
+.error-msg.visible { display:flex; }
+
+.divider { display:flex;align-items:center;gap:12px;margin:24px 0; }
+.divider-line { flex:1;height:1px;background:rgba(139,163,193,.15); }
+.divider-text { font-size:12px;color:var(--slate-dim); }
+.btn-sso { width:100%;padding:13px;background:transparent;border:1px solid rgba(139,163,193,.2);border-radius:8px;color:var(--slate);font-family:'Inter',sans-serif;font-size:13.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:border-color .2s,color .2s,background .2s; }
+.btn-sso:hover { border-color:rgba(0,212,255,.35);color:var(--snow);background:rgba(0,212,255,.04); }
+.form-footer { margin-top:28px;font-size:12px;color:var(--slate-dim);text-align:center;line-height:1.6; }
+.form-footer a { color:var(--cyan);text-decoration:none; }
+
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus {
+  -webkit-text-fill-color:var(--white);
+  -webkit-box-shadow:0 0 0 1000px #0e2445 inset;
+  transition:background-color 5000s ease-in-out 0s;
+}
+
+/* ════════════════════════════════════════
+   DASHBOARD SHELL
+════════════════════════════════════════ */
+#dashScreen {
+  display: none; position: fixed; inset: 0;
+  flex-direction: column; background: var(--navy);
+  opacity: 0; transition: opacity 0.4s ease;
+}
+#dashScreen.visible { display: flex; }
+#dashScreen.shown { opacity: 1; }
+
+/* TOP BAR */
+.topbar {
+  height: var(--topbar-h); min-height: var(--topbar-h);
+  background: var(--navy-card);
+  border-bottom: 1px solid rgba(139,163,193,.1);
+  display: flex; align-items: center;
+  padding: 0 20px 0 0; gap: 16px; z-index: 50; flex-shrink:0;
+}
+.topbar-logo {
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 20px; border-right: 1px solid rgba(139,163,193,.1);
+  height: 100%;
+}
+.topbar-logo .logo-mark { width:28px;height:28px;padding:5px;gap:2px; }
+.topbar-logo .logo-text { font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:var(--white);letter-spacing:-.02em; }
+
+.topbar-search {
+  flex:1; max-width:340px; position:relative; display:flex; align-items:center;
+}
+.topbar-search input {
+  width:100%; background:rgba(30,58,95,.4); border:1px solid rgba(139,163,193,.15);
+  border-radius:7px; padding:8px 14px 8px 36px; font-size:13px;
+  font-family:'Inter',sans-serif; color:var(--snow); outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.topbar-search input::placeholder { color:var(--slate-dim); }
+.topbar-search input:focus { border-color:var(--cyan);box-shadow:0 0 0 3px var(--cyan-glow); }
+.topbar-search .si { position:absolute;left:11px;color:var(--slate-dim);pointer-events:none;display:flex; }
+
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:14px; }
+
+.topbar-btn {
+  width:34px;height:34px;border-radius:7px;background:rgba(30,58,95,.4);
+  border:1px solid rgba(139,163,193,.12); cursor:pointer;
+  display:grid;place-items:center;color:var(--slate);
+  transition:color .2s,border-color .2s,background .2s; position:relative;
+}
+.topbar-btn:hover { color:var(--cyan);border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.06); }
+.notif-dot { position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--danger);border:1.5px solid var(--navy-card); }
+
+.user-chip {
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  padding:5px 10px;border-radius:7px;border:1px solid rgba(139,163,193,.12);
+  background:rgba(30,58,95,.3); transition:background .2s,border-color .2s;
+}
+.user-chip:hover { background:rgba(30,58,95,.6);border-color:rgba(139,163,193,.25); }
+.user-avatar {
+  width:26px;height:26px;border-radius:50%;background:var(--cyan);
+  display:grid;place-items:center;font-family:'Space Grotesk',sans-serif;
+  font-size:11px;font-weight:700;color:var(--navy);flex-shrink:0;
+}
+.user-name { font-size:12.5px;color:var(--snow);font-weight:500;white-space:nowrap; }
+.user-role { font-size:10.5px;color:var(--slate-dim); }
+
+/* BODY */
+.dash-body { display:flex; flex:1; overflow:hidden; }
+
+/* SIDEBAR */
+.sidebar {
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  background: var(--navy-card);
+  border-right: 1px solid rgba(139,163,193,.1);
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+  padding: 16px 0 24px;
+}
+.sidebar::-webkit-scrollbar { width:4px; }
+.sidebar::-webkit-scrollbar-track { background:transparent; }
+.sidebar::-webkit-scrollbar-thumb { background:rgba(139,163,193,.2);border-radius:2px; }
+
+.nav-section { margin-bottom:8px; }
+.nav-section-label {
+  font-size:10px; font-family:'Space Grotesk',sans-serif;
+  color:var(--slate-dim); letter-spacing:.08em;
+  padding:6px 20px 4px; font-weight:500;
+}
+
+.nav-item {
+  display:flex; align-items:center; gap:11px;
+  padding:9px 20px; cursor:pointer;
+  color:var(--slate); font-size:13.5px;
+  border-left:2px solid transparent;
+  transition:color .15s,background .15s,border-color .15s;
+  user-select:none; position:relative;
+}
+.nav-item:hover { color:var(--snow); background:rgba(139,163,193,.06); }
+.nav-item.active {
+  color:var(--cyan); background:rgba(0,212,255,.07);
+  border-left-color:var(--cyan);
+}
+.nav-item svg { flex-shrink:0; }
+.nav-badge {
+  margin-left:auto; font-size:10px; font-weight:600;
+  background:rgba(255,77,109,.2); color:var(--danger);
+  border-radius:10px; padding:2px 7px; font-family:'Space Grotesk',sans-serif;
+}
+.nav-badge.info { background:rgba(0,212,255,.15); color:var(--cyan); }
+.nav-badge.amber { background:rgba(255,184,48,.15); color:var(--amber); }
+
+.sidebar-divider { height:1px; background:rgba(139,163,193,.08); margin:8px 0; }
+
+.sidebar-footer {
+  margin-top:auto; padding:16px 20px 0;
+  border-top:1px solid rgba(139,163,193,.08);
+}
+.sidebar-facility {
+  background:rgba(0,212,255,.06); border:1px solid rgba(0,212,255,.15);
+  border-radius:7px; padding:10px 12px;
+}
+.fac-label { font-size:10px;color:var(--slate-dim);margin-bottom:2px; }
+.fac-name { font-size:13px;color:var(--snow);font-weight:500;font-family:'Space Grotesk',sans-serif; }
+.fac-status { display:flex;align-items:center;gap:5px;font-size:11px;color:var(--success);margin-top:3px; }
+.fac-dot { width:5px;height:5px;border-radius:50%;background:var(--success); }
+
+/* MAIN CONTENT */
+.main { flex:1; overflow-y:auto; overflow-x:hidden; background:var(--navy); }
+.main::-webkit-scrollbar { width:5px; }
+.main::-webkit-scrollbar-track { background:transparent; }
+.main::-webkit-scrollbar-thumb { background:rgba(139,163,193,.2);border-radius:3px; }
+
+.page { display:none; padding:28px 32px; min-height:100%; }
+.page.active { display:block; }
+
+.page-header { margin-bottom:28px; }
+.page-title { font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:var(--white); }
+.page-sub { font-size:13px;color:var(--slate);margin-top:4px; }
+
+/* METRIC CARDS */
+.metrics-row { display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px; }
+.metric-card {
+  background:var(--navy-card); border:1px solid rgba(139,163,193,.1);
+  border-radius:10px; padding:18px 20px;
+}
+.metric-label { font-size:11.5px;color:var(--slate);margin-bottom:10px; }
+.metric-value { font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;color:var(--white);line-height:1; }
+.metric-value span { font-size:16px;color:var(--slate); }
+.metric-delta { font-size:11px;margin-top:6px;display:flex;align-items:center;gap:4px; }
+.delta-up { color:var(--success); }
+.delta-down { color:var(--danger); }
+
+/* SLOT MAP */
+.slot-section { display:grid;grid-template-columns:1fr 300px;gap:16px;margin-bottom:28px; }
+.panel { background:var(--navy-card);border:1px solid rgba(139,163,193,.1);border-radius:10px;padding:20px; }
+.panel-title { font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:var(--white);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between; }
+.panel-title .pt-badge { font-size:10.5px;font-weight:500;color:var(--cyan);background:rgba(0,212,255,.1);border-radius:4px;padding:2px 8px; }
+
+#slotMapCanvas { width:100%;border-radius:6px;display:block; }
+
+/* LEGEND */
+.slot-legend { display:flex;gap:14px;margin-top:12px;flex-wrap:wrap; }
+.leg-item { display:flex;align-items:center;gap:6px;font-size:11px;color:var(--slate); }
+.leg-swatch { width:10px;height:10px;border-radius:2px; }
+
+/* CO-PICK LIST */
+.copick-list { display:flex;flex-direction:column;gap:10px; }
+.copick-row {
+  display:flex;align-items:center;gap:10px;
+  background:rgba(30,58,95,.3);border-radius:7px;padding:10px 12px;
+}
+.copick-pair { font-size:12.5px;color:var(--snow);font-family:'Space Grotesk',sans-serif;font-weight:500;flex:1; }
+.copick-skus { font-size:10.5px;color:var(--slate-dim);margin-top:1px; }
+.copick-bar-wrap { width:60px;height:4px;background:rgba(139,163,193,.15);border-radius:2px; }
+.copick-bar { height:100%;border-radius:2px;background:var(--cyan); }
+.copick-pct { font-size:11px;color:var(--cyan);font-family:'Space Grotesk',sans-serif;font-weight:600;width:32px;text-align:right; }
+
+/* TABLE */
+.tbl-wrap { overflow-x:auto;border-radius:8px; }
+table { width:100%;border-collapse:collapse;font-size:13px; }
+thead th { background:rgba(30,58,95,.4);padding:10px 14px;text-align:left;font-size:11px;font-family:'Space Grotesk',sans-serif;font-weight:500;color:var(--slate);white-space:nowrap;border-bottom:1px solid rgba(139,163,193,.1); }
+tbody tr { border-bottom:1px solid rgba(139,163,193,.06);transition:background .15s; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:rgba(30,58,95,.2); }
+tbody td { padding:10px 14px;color:var(--snow); }
+.tbl-badge { display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-family:'Space Grotesk',sans-serif;font-weight:500; }
+.tbl-badge.green { background:rgba(0,229,160,.12);color:var(--success); }
+.tbl-badge.amber { background:rgba(255,184,48,.12);color:var(--amber); }
+.tbl-badge.red   { background:rgba(255,77,109,.12);color:var(--danger); }
+.tbl-badge.blue  { background:rgba(0,212,255,.12);color:var(--cyan); }
+
+/* FULL-PAGE TABLE PANEL */
+.full-panel { background:var(--navy-card);border:1px solid rgba(139,163,193,.1);border-radius:10px;overflow:hidden; }
+.full-panel .panel-header { padding:18px 20px;border-bottom:1px solid rgba(139,163,193,.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+.full-panel .panel-header h2 { font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:var(--white); }
+.filter-row { display:flex;gap:8px;align-items:center; }
+.filter-input { background:rgba(30,58,95,.5);border:1px solid rgba(139,163,193,.15);border-radius:6px;padding:7px 12px;font-size:12.5px;color:var(--snow);font-family:'Inter',sans-serif;outline:none;width:180px;transition:border-color .2s; }
+.filter-input::placeholder { color:var(--slate-dim); }
+.filter-input:focus { border-color:var(--cyan); }
+.filter-select { background:rgba(30,58,95,.5);border:1px solid rgba(139,163,193,.15);border-radius:6px;padding:7px 10px;font-size:12.5px;color:var(--snow);font-family:'Inter',sans-serif;outline:none;cursor:pointer; }
+
+/* GRAPH CANVAS */
+#graphCanvas { width:100%;border-radius:6px;display:block;cursor:grab; }
+
+/* ALERTS */
+.alert-list { display:flex;flex-direction:column;gap:10px; }
+.alert-item {
+  display:flex;align-items:flex-start;gap:12px;
+  background:var(--navy-card);border:1px solid rgba(139,163,193,.1);
+  border-radius:8px;padding:14px 16px;
+}
+.alert-icon { width:32px;height:32px;border-radius:7px;display:grid;place-items:center;flex-shrink:0; }
+.alert-icon.red { background:rgba(255,77,109,.12); }
+.alert-icon.amber { background:rgba(255,184,48,.12); }
+.alert-icon.blue { background:rgba(0,212,255,.1); }
+.alert-icon.green { background:rgba(0,229,160,.1); }
+.alert-title { font-size:13.5px;color:var(--white);font-weight:500;font-family:'Space Grotesk',sans-serif; }
+.alert-desc { font-size:12px;color:var(--slate);margin-top:2px;line-height:1.5; }
+.alert-time { margin-left:auto;font-size:11px;color:var(--slate-dim);white-space:nowrap;padding-top:2px; }
+
+/* SETTINGS */
+.settings-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+.setting-card { background:var(--navy-card);border:1px solid rgba(139,163,193,.1);border-radius:10px;padding:20px; }
+.setting-card h3 { font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:var(--white);margin-bottom:14px; }
+.setting-row { display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(139,163,193,.06); }
+.setting-row:last-child { border-bottom:none; }
+.setting-label { font-size:13px;color:var(--snow); }
+.setting-hint { font-size:11px;color:var(--slate-dim);margin-top:1px; }
+
+/* TOGGLE SWITCH */
+.toggle { position:relative;width:36px;height:20px;flex-shrink:0; }
+.toggle input { opacity:0;width:0;height:0; }
+.toggle-slider {
+  position:absolute;inset:0;background:rgba(139,163,193,.2);
+  border-radius:20px;cursor:pointer;transition:background .2s;
+}
+.toggle-slider::before {
+  content:'';position:absolute;width:14px;height:14px;
+  left:3px;top:3px;background:var(--slate);border-radius:50%;
+  transition:transform .2s,background .2s;
+}
+.toggle input:checked+.toggle-slider { background:rgba(0,212,255,.3); }
+.toggle input:checked+.toggle-slider::before { transform:translateX(16px);background:var(--cyan); }
+
+/* ANIMATIONS */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+.page.active { animation:fadeIn .25s ease; }
+
+@media(max-width:900px) {
+  .metrics-row { grid-template-columns:repeat(2,1fr); }
+  .slot-section { grid-template-columns:1fr; }
+  .settings-grid { grid-template-columns:1fr; }
+}
+@media(max-width:680px) {
+  #loginScreen { grid-template-columns:1fr; }
+  .vis { display:none; }
+  .form-panel { padding:36px 24px; }
+  :root { --sidebar-w:200px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════ LOGIN SCREEN ════════════ -->
+<div id="loginScreen">
+  <div class="vis">
+    <canvas id="gridCanvas"></canvas>
+    <div class="vis-content">
+      <div class="badge"><span class="badge-dot"></span>Co-pick Pattern Mining Active</div>
+      <h1 class="vis-title">Slot every SKU<br>where it <span>earns</span> its space.</h1>
+      <p class="vis-desc">Graph-based allocation maps real co-pick relationships across your warehouse, then assigns storage slots to cut travel distance and fulfillment time automatically.</p>
+      <div class="stats">
+        <div><div class="stat-value">38<span>%</span></div><div class="stat-label">Avg. travel reduction</div></div>
+        <div><div class="stat-value">1.2M<span>+</span></div><div class="stat-label">Slot assignments/day</div></div>
+        <div><div class="stat-value">4<span>ms</span></div><div class="stat-label">Reopt. latency</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-panel">
+    <div class="logo">
+      <div class="logo-mark"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="logo-text">Slot<em>IQ</em></div>
+    </div>
+    <h2 class="form-heading">Sign in to your facility</h2>
+    <p class="form-sub">Access your slotting workspace and optimization engine.</p>
+    <div class="error-msg" id="errorMsg">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#FF4D6D" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="#FF4D6D" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#FF4D6D"/></svg>
+      <span id="errorText">Invalid credentials. Please try again.</span>
+    </div>
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="email">Work email</label>
+        <div class="input-wrap">
+          <span class="input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 7l10 7 10-7"/></svg></span>
+          <input type="email" id="email" placeholder="ops@warehouse.com" autocomplete="email" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <span class="input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+          <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+          <button type="button" class="toggle-pw" id="togglePw">
+            <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="row-aux">
+        <label class="check-label"><input type="checkbox"><span class="check-box"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><polyline points="1 6 4.5 9.5 11 2" stroke="#0A1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Keep me signed in</label>
+        <a href="#" class="forgot-link">Forgot password?</a>
+      </div>
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <span class="spinner"></span>
+        <span class="btn-label">Sign in</span>
+        <svg class="btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </form>
+    <div class="divider"><span class="divider-line"></span><span class="divider-text">or continue with</span><span class="divider-line"></span></div>
+    <button class="btn-sso"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>Sign in with company SSO</button>
+    <p class="form-footer">New facility? <a href="#">Request access</a> &nbsp;·&nbsp; <a href="#">Privacy policy</a></p>
+  </div>
+</div>
+
+<!-- ════════════ DASHBOARD ════════════ -->
+<div id="dashScreen">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="logo-mark"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="logo-text">Slot<em>IQ</em></div>
+    </div>
+    <div class="topbar-search">
+      <span class="si"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+      <input type="text" placeholder="Search SKUs, slots, zones…">
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot"></span></div>
+      <div class="topbar-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>
+      <div class="user-chip" id="userChip">
+        <div class="user-avatar" id="userAvatar">AD</div>
+        <div><div class="user-name" id="userName">Admin</div><div class="user-role">Warehouse Manager</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="dash-body">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <div class="nav-section">
+        <div class="nav-section-label">Main</div>
+        <div class="nav-item active" data-page="overview">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Overview
+        </div>
+        <div class="nav-item" data-page="inventory">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          Inventory
+          <span class="nav-badge info">2,841</span>
+        </div>
+        <div class="nav-item" data-page="slotmap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+          Slot Map
+        </div>
+        <div class="nav-item" data-page="copick">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="m8.5 8.5 7 3M15.5 8.5l-7 7"/></svg>
+          Co-pick Graph
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Operations</div>
+        <div class="nav-item" data-page="orders">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Orders
+          <span class="nav-badge">14</span>
+        </div>
+        <div class="nav-item" data-page="zones">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Zones
+        </div>
+        <div class="nav-item" data-page="replenishment">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Replenishment
+          <span class="nav-badge amber">3</span>
+        </div>
+        <div class="nav-item" data-page="alerts">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Alerts
+          <span class="nav-badge">7</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Analytics</div>
+        <div class="nav-item" data-page="reports">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Reports
+        </div>
+        <div class="nav-item" data-page="optimizer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+          Optimizer
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="nav-section">
+        <div class="nav-item" data-page="settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+          Settings
+        </div>
+        <div class="nav-item" id="logoutBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-facility">
+          <div class="fac-label">Active Facility</div>
+          <div class="fac-name">Warehouse A — Bay 12</div>
+          <div class="fac-status"><span class="fac-dot"></span>Optimizer running</div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+      <!-- OVERVIEW -->
+      <div class="page active" id="page-overview">
+        <div class="page-header">
+          <div class="page-title">Overview</div>
+          <div class="page-sub">Facility performance — updated 2 min ago</div>
+        </div>
+        <div class="metrics-row">
+          <div class="metric-card"><div class="metric-label">Total SKUs</div><div class="metric-value">2,841</div><div class="metric-delta delta-up">▲ 48 added this week</div></div>
+          <div class="metric-card"><div class="metric-label">Slot Utilization</div><div class="metric-value">87<span>%</span></div><div class="metric-delta delta-up">▲ 2.3% vs last month</div></div>
+          <div class="metric-card"><div class="metric-label">Avg. Pick Distance</div><div class="metric-value">14.2<span>m</span></div><div class="metric-delta delta-up">▼ 5.1m saved by optimizer</div></div>
+          <div class="metric-card"><div class="metric-label">Pending Reopt.</div><div class="metric-value">3<span></span></div><div class="metric-delta delta-down">▲ 3 triggered today</div></div>
+        </div>
+        <div class="slot-section">
+          <div class="panel">
+            <div class="panel-title">Live Slot Heat Map <span class="pt-badge">Zone A–D</span></div>
+            <canvas id="slotMapCanvas" height="240"></canvas>
+            <div class="slot-legend">
+              <div class="leg-item"><div class="leg-swatch" style="background:#00D4FF"></div>Hot (high pick)</div>
+              <div class="leg-item"><div class="leg-swatch" style="background:#1E3A5F"></div>Warm</div>
+              <div class="leg-item"><div class="leg-swatch" style="background:#0A1628;border:1px solid #1E3A5F"></div>Cold</div>
+              <div class="leg-item"><div class="leg-swatch" style="background:#FF4D6D"></div>Misslotted</div>
+              <div class="leg-item"><div class="leg-swatch" style="background:#FFB830"></div>Pending move</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Top Co-pick Pairs</div>
+            <div class="copick-list">
+              <div class="copick-row"><div><div class="copick-pair">Batteries + Chargers</div><div class="copick-skus">SKU-0041 · SKU-0055</div></div><div class="copick-bar-wrap"><div class="copick-bar" style="width:94%"></div></div><div class="copick-pct">94%</div></div>
+              <div class="copick-row"><div><div class="copick-pair">Gloves + Safety Vest</div><div class="copick-skus">SKU-0112 · SKU-0118</div></div><div class="copick-bar-wrap"><div class="copick-bar" style="width:88%"></div></div><div class="copick-pct">88%</div></div>
+              <div class="copick-row"><div><div class="copick-pair">Drill + Drill Bits</div><div class="copick-skus">SKU-0203 · SKU-0209</div></div><div class="copick-bar-wrap"><div class="copick-bar" style="width:82%"></div></div><div class="copick-pct">82%</div></div>
+              <div class="copick-row"><div><div class="copick-pair">Box Tape + Cutters</div><div class="copick-skus">SKU-0317 · SKU-0322</div></div><div class="copick-bar-wrap"><div class="copick-bar" style="width:76%"></div></div><div class="copick-pct">76%</div></div>
+              <div class="copick-row"><div><div class="copick-pair">Pallets + Wrap Film</div><div class="copick-skus">SKU-0401 · SKU-0408</div></div><div class="copick-bar-wrap"><div class="copick-bar" style="width:69%"></div></div><div class="copick-pct">69%</div></div>
+              <div class="copick-row"><div><div class="copick-pair">Labels + Label Guns</div><div class="copick-skus">SKU-0510 · SKU-0511</div></div><div class="copick-bar-wrap"><div class="copick-bar" style="width:61%"></div></div><div class="copick-pct">61%</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div class="page" id="page-inventory">
+        <div class="page-header">
+          <div class="page-title">Inventory</div>
+          <div class="page-sub">2,841 SKUs across 6 zones</div>
+        </div>
+        <div class="full-panel">
+          <div class="panel-header">
+            <h2>All Stock Keeping Units</h2>
+            <div class="filter-row">
+              <input class="filter-input" type="text" placeholder="Search SKU or name…" id="invSearch">
+              <select class="filter-select" id="invZone"><option value="">All Zones</option><option>Zone A</option><option>Zone B</option><option>Zone C</option><option>Zone D</option></select>
+              <select class="filter-select" id="invStatus"><option value="">All Status</option><option>Optimal</option><option>Misslotted</option><option>Low Stock</option></select>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table id="invTable">
+              <thead><tr><th>SKU</th><th>Name</th><th>Zone</th><th>Slot</th><th>Stock</th><th>Pick Freq.</th><th>Status</th></tr></thead>
+              <tbody id="invBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLOT MAP -->
+      <div class="page" id="page-slotmap">
+        <div class="page-header">
+          <div class="page-title">Slot Map</div>
+          <div class="page-sub">Interactive warehouse grid — click a slot for details</div>
+        </div>
+        <div class="panel" style="height:calc(100vh - 200px)">
+          <div class="panel-title">Warehouse Floor Plan <span class="pt-badge">1,200 slots</span></div>
+          <canvas id="floorCanvas" style="width:100%;height:calc(100% - 48px);display:block;border-radius:6px;cursor:crosshair"></canvas>
+        </div>
+      </div>
+
+      <!-- CO-PICK GRAPH -->
+      <div class="page" id="page-copick">
+        <div class="page-header">
+          <div class="page-title">Co-pick Graph</div>
+          <div class="page-sub">Node = SKU &nbsp;·&nbsp; Edge weight = co-pick frequency &nbsp;·&nbsp; Drag to explore</div>
+        </div>
+        <div class="panel" style="height:calc(100vh - 200px)">
+          <div class="panel-title">Co-pick Network <span class="pt-badge">Top 40 SKUs</span></div>
+          <canvas id="graphCanvas" style="height:calc(100% - 48px)"></canvas>
+        </div>
+      </div>
+
+      <!-- ORDERS -->
+      <div class="page" id="page-orders">
+        <div class="page-header"><div class="page-title">Orders</div><div class="page-sub">14 open orders pending fulfillment</div></div>
+        <div class="full-panel">
+          <div class="panel-header"><h2>Open Orders</h2></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>SKUs</th><th>Created</th><th>Priority</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>ORD-8841</td><td>Acme Corp</td><td>12</td><td>Today 08:14</td><td><span class="tbl-badge red">High</span></td><td><span class="tbl-badge amber">Picking</span></td></tr>
+            <tr><td>ORD-8840</td><td>BuildRight Ltd</td><td>5</td><td>Today 07:52</td><td><span class="tbl-badge amber">Medium</span></td><td><span class="tbl-badge blue">Queued</span></td></tr>
+            <tr><td>ORD-8839</td><td>SafeGuard Inc</td><td>9</td><td>Today 07:30</td><td><span class="tbl-badge red">High</span></td><td><span class="tbl-badge amber">Picking</span></td></tr>
+            <tr><td>ORD-8838</td><td>Nexus Supply</td><td>3</td><td>Yesterday</td><td><span class="tbl-badge blue">Low</span></td><td><span class="tbl-badge blue">Queued</span></td></tr>
+            <tr><td>ORD-8837</td><td>Metro Goods</td><td>21</td><td>Yesterday</td><td><span class="tbl-badge amber">Medium</span></td><td><span class="tbl-badge green">Packed</span></td></tr>
+            <tr><td>ORD-8836</td><td>FastTrack LLC</td><td>7</td><td>Yesterday</td><td><span class="tbl-badge red">High</span></td><td><span class="tbl-badge green">Packed</span></td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+
+      <!-- ZONES -->
+      <div class="page" id="page-zones">
+        <div class="page-header"><div class="page-title">Zones</div><div class="page-sub">Storage zones and aisle configuration</div></div>
+        <div class="metrics-row">
+          <div class="metric-card"><div class="metric-label">Zone A — Fast-pick</div><div class="metric-value">312</div><div class="metric-delta delta-up">91% utilization</div></div>
+          <div class="metric-card"><div class="metric-label">Zone B — Bulk</div><div class="metric-value">480</div><div class="metric-delta">79% utilization</div></div>
+          <div class="metric-card"><div class="metric-label">Zone C — Cold</div><div class="metric-value">120</div><div class="metric-delta delta-up">96% utilization</div></div>
+          <div class="metric-card"><div class="metric-label">Zone D — Oversize</div><div class="metric-value">88</div><div class="metric-delta delta-down">62% utilization</div></div>
+        </div>
+        <div class="full-panel">
+          <div class="panel-header"><h2>Zone Configuration</h2></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Zone</th><th>Aisles</th><th>Slots</th><th>Capacity</th><th>Temp.</th><th>Priority SKUs</th><th>Health</th></tr></thead>
+          <tbody>
+            <tr><td>Zone A</td><td>4</td><td>312</td><td>91%</td><td>Ambient</td><td>Fast-movers</td><td><span class="tbl-badge green">Optimal</span></td></tr>
+            <tr><td>Zone B</td><td>8</td><td>480</td><td>79%</td><td>Ambient</td><td>Bulk items</td><td><span class="tbl-badge green">Optimal</span></td></tr>
+            <tr><td>Zone C</td><td>2</td><td>120</td><td>96%</td><td>2–8°C</td><td>Perishables</td><td><span class="tbl-badge amber">Near full</span></td></tr>
+            <tr><td>Zone D</td><td>3</td><td>88</td><td>62%</td><td>Ambient</td><td>Oversize</td><td><span class="tbl-badge blue">Underused</span></td></tr>
+            <tr><td>Zone E</td><td>5</td><td>200</td><td>84%</td><td>Ambient</td><td>Mixed</td><td><span class="tbl-badge green">Optimal</span></td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+
+      <!-- REPLENISHMENT -->
+      <div class="page" id="page-replenishment">
+        <div class="page-header"><div class="page-title">Replenishment</div><div class="page-sub">3 slots flagged for replenishment</div></div>
+        <div class="full-panel">
+          <div class="panel-header"><h2>Replenishment Queue</h2></div>
+          <div class="tbl-wrap"><table><thead><tr><th>SKU</th><th>Name</th><th>Slot</th><th>Current Stock</th><th>Min. Level</th><th>Urgency</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>SKU-0041</td><td>AA Batteries 4-pk</td><td>A02-011</td><td>4</td><td>20</td><td><span class="tbl-badge red">Critical</span></td><td><span class="tbl-badge blue">Order placed</span></td></tr>
+            <tr><td>SKU-0203</td><td>Cordless Drill 18V</td><td>A05-003</td><td>2</td><td>8</td><td><span class="tbl-badge amber">Medium</span></td><td><span class="tbl-badge amber">Pending</span></td></tr>
+            <tr><td>SKU-0317</td><td>Box Tape 50m</td><td>B12-007</td><td>11</td><td>30</td><td><span class="tbl-badge amber">Medium</span></td><td><span class="tbl-badge amber">Pending</span></td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+
+      <!-- ALERTS -->
+      <div class="page" id="page-alerts">
+        <div class="page-header"><div class="page-title">Alerts</div><div class="page-sub">7 active alerts requiring attention</div></div>
+        <div class="alert-list">
+          <div class="alert-item"><div class="alert-icon red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF4D6D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="alert-title">Misslot detected — SKU-0041</div><div class="alert-desc">Batteries placed in Zone D (oversize). Co-pick graph recommends Zone A, slot A02-011 adjacent to chargers (SKU-0055).</div></div><div class="alert-time">2 min ago</div></div>
+          <div class="alert-item"><div class="alert-icon red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF4D6D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="alert-title">Critical stock — SKU-0041 (AA Batteries)</div><div class="alert-desc">4 units remaining, minimum threshold is 20. Replenishment order placed, ETA 4 hours.</div></div><div class="alert-time">14 min ago</div></div>
+          <div class="alert-item"><div class="alert-icon amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB830" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="#FFB830"/></svg></div><div><div class="alert-title">Zone C near capacity (96%)</div><div class="alert-desc">Cold storage approaching full. 3 incoming perishable SKUs scheduled for tomorrow. Consider temp slot overflow to Zone B-cold annex.</div></div><div class="alert-time">1 hr ago</div></div>
+          <div class="alert-item"><div class="alert-icon blue"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div><div><div class="alert-title">Optimizer recommendation ready</div><div class="alert-desc">New co-pick patterns identified across 18 SKU pairs. Proposed reslotting would reduce avg. pick distance by 3.2m.</div></div><div class="alert-time">2 hr ago</div></div>
+          <div class="alert-item"><div class="alert-icon green"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00E5A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="alert-title">Reslotting complete — 24 SKUs moved</div><div class="alert-desc">Batch optimization applied. Travel distance reduced 5.1m on average across Zone A and B picks.</div></div><div class="alert-time">Yesterday</div></div>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="page" id="page-reports">
+        <div class="page-header"><div class="page-title">Reports</div><div class="page-sub">Performance analytics and exports</div></div>
+        <div class="metrics-row">
+          <div class="metric-card"><div class="metric-label">Picks this week</div><div class="metric-value">18,420</div><div class="metric-delta delta-up">▲ 12% vs last week</div></div>
+          <div class="metric-card"><div class="metric-label">Errors this week</div><div class="metric-value">23</div><div class="metric-delta delta-up">▼ 8 fewer than last week</div></div>
+          <div class="metric-card"><div class="metric-label">Distance saved (km)</div><div class="metric-value">94.2</div><div class="metric-delta delta-up">Optimizer contribution</div></div>
+          <div class="metric-card"><div class="metric-label">Reopt. runs</div><div class="metric-value">12</div><div class="metric-delta">This month</div></div>
+        </div>
+        <div class="full-panel">
+          <div class="panel-header"><h2>Recent Reports</h2></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Report</th><th>Generated</th><th>Period</th><th>Format</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Weekly Slot Efficiency</td><td>Today 06:00</td><td>Sep 15–22</td><td>PDF</td><td><span class="tbl-badge green">Ready</span></td></tr>
+            <tr><td>Co-pick Pattern Analysis</td><td>Yesterday</td><td>Sep 2026</td><td>CSV</td><td><span class="tbl-badge green">Ready</span></td></tr>
+            <tr><td>Zone Utilization Summary</td><td>Mon 18 Sep</td><td>Q3 2026</td><td>PDF</td><td><span class="tbl-badge green">Ready</span></td></tr>
+            <tr><td>Replenishment Forecast</td><td>Mon 18 Sep</td><td>30-day</td><td>XLSX</td><td><span class="tbl-badge amber">Processing</span></td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+
+      <!-- OPTIMIZER -->
+      <div class="page" id="page-optimizer">
+        <div class="page-header"><div class="page-title">Optimizer</div><div class="page-sub">Graph-based slot assignment engine</div></div>
+        <div class="metrics-row">
+          <div class="metric-card"><div class="metric-label">Last run</div><div class="metric-value" style="font-size:18px">2h ago</div><div class="metric-delta delta-up">24 SKUs reslotted</div></div>
+          <div class="metric-card"><div class="metric-label">Algorithm</div><div class="metric-value" style="font-size:18px">GraphOpt</div><div class="metric-delta">v2.4 · Co-pick weighted</div></div>
+          <div class="metric-card"><div class="metric-label">Pending moves</div><div class="metric-value">3</div><div class="metric-delta delta-down">Await approval</div></div>
+          <div class="metric-card"><div class="metric-label">Efficiency gain</div><div class="metric-value">38<span>%</span></div><div class="metric-delta delta-up">vs manual slotting</div></div>
+        </div>
+        <div class="slot-section">
+          <div class="full-panel">
+            <div class="panel-header"><h2>Pending Reslot Recommendations</h2></div>
+            <div class="tbl-wrap"><table><thead><tr><th>SKU</th><th>Name</th><th>Current Slot</th><th>Recommended Slot</th><th>Distance Saved</th><th>Reason</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>SKU-0041</td><td>AA Batteries</td><td>D08-002</td><td>A02-011</td><td>18.4m</td><td>Co-pick: SKU-0055</td><td><span class="tbl-badge green">Approve</span></td></tr>
+              <tr><td>SKU-0203</td><td>Drill 18V</td><td>B14-008</td><td>A05-003</td><td>9.1m</td><td>High pick freq.</td><td><span class="tbl-badge green">Approve</span></td></tr>
+              <tr><td>SKU-0317</td><td>Box Tape 50m</td><td>C03-012</td><td>B12-007</td><td>6.8m</td><td>Co-pick: SKU-0322</td><td><span class="tbl-badge green">Approve</span></td></tr>
+            </tbody></table></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="page" id="page-settings">
+        <div class="page-header"><div class="page-title">Settings</div><div class="page-sub">Optimizer and facility configuration</div></div>
+        <div class="settings-grid">
+          <div class="setting-card">
+            <h3>Optimizer</h3>
+            <div class="setting-row"><div><div class="setting-label">Auto-reslot on pattern change</div><div class="setting-hint">Trigger reslotting when co-pick score shifts &gt;10%</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div><div class="setting-label">Require approval for moves</div><div class="setting-hint">Manager must approve before slots are changed</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div><div class="setting-label">Real-time co-pick mining</div><div class="setting-hint">Continuously update graph from pick events</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+          </div>
+          <div class="setting-card">
+            <h3>Alerts</h3>
+            <div class="setting-row"><div><div class="setting-label">Misslot notifications</div><div class="setting-hint">Alert when SKU is placed in a suboptimal slot</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div><div class="setting-label">Low stock alerts</div><div class="setting-hint">Notify when stock falls below minimum threshold</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div><div class="setting-label">Email daily summary</div><div class="setting-hint">Send overnight report to facility manager</div></div><label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label></div>
+          </div>
+          <div class="setting-card">
+            <h3>Display</h3>
+            <div class="setting-row"><div><div class="setting-label">Show slot IDs on map</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div><div class="setting-label">Animate heat map</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div><div class="setting-label">Compact table view</div></div><label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label></div>
+          </div>
+          <div class="setting-card">
+            <h3>Account</h3>
+            <div class="setting-row"><div><div class="setting-label" id="settingsUserName">Admin User</div><div class="setting-hint" id="settingsEmail">—</div></div></div>
+            <div class="setting-row"><div><div class="setting-label">Two-factor authentication</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div><div class="setting-label">Session timeout (30 min)</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   LOGIN CANVAS ANIMATION
+══════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('gridCanvas');
+  const ctx = canvas.getContext('2d');
+  const CELL = 38;
+  let W,H,cols,rows,cells=[],connections=[],frame=0,animId;
+
+  function resize(){
+    const r=canvas.parentElement.getBoundingClientRect();
+    W=canvas.width=r.width; H=canvas.height=r.height;
+    cols=Math.ceil(W/CELL)+1; rows=Math.ceil(H/CELL)+1;
+    buildCells(); buildConns();
+  }
+  function buildCells(){
+    cells=[];
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++)
+      cells.push({r,c,phase:Math.random()*Math.PI*2,speed:.4+Math.random()*.6,
+        type:Math.random()<.07?'hot':Math.random()<.12?'cold':'normal'});
+  }
+  function buildConns(){
+    connections=[];
+    for(let i=0;i<14;i++){
+      const c1=Math.floor(Math.random()*cols),r1=Math.floor(Math.random()*rows);
+      connections.push({c1,r1,c2:Math.max(0,Math.min(cols-1,c1+Math.floor(Math.random()*5)-2)),
+        r2:Math.max(0,Math.min(rows-1,r1+Math.floor(Math.random()*4)-2)),
+        t:Math.random(),speed:.003+Math.random()*.004});
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H); frame++;
+    const t=frame*.015;
+    cells.forEach(cell=>{
+      const x=cell.c*CELL,y=cell.r*CELL,pulse=Math.sin(t*cell.speed+cell.phase)*.5+.5;
+      let fillA,strokeA,fill;
+      if(cell.type==='hot'){fillA=.08+pulse*.12;strokeA=.25+pulse*.25;fill=`rgba(0,212,255,${fillA})`;ctx.strokeStyle=`rgba(0,212,255,${strokeA})`;}
+      else if(cell.type==='cold'){fillA=.04+pulse*.06;strokeA=.1+pulse*.08;fill=`rgba(30,58,95,${fillA})`;ctx.strokeStyle=`rgba(139,163,193,${strokeA})`;}
+      else{fillA=.015;strokeA=.06;fill=`rgba(30,58,95,${fillA})`;ctx.strokeStyle=`rgba(139,163,193,${strokeA})`;}
+      ctx.fillStyle=fill;ctx.lineWidth=.5;
+      ctx.beginPath();ctx.rect(x+1,y+1,CELL-2,CELL-2);ctx.fill();ctx.stroke();
+    });
+    connections.forEach(conn=>{
+      conn.t=(conn.t+conn.speed)%1;
+      const x1=conn.c1*CELL+CELL/2,y1=conn.r1*CELL+CELL/2,x2=conn.c2*CELL+CELL/2,y2=conn.r2*CELL+CELL/2;
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle='rgba(0,212,255,.1)';ctx.lineWidth=1;ctx.stroke();
+      const px=x1+(x2-x1)*conn.t,py=y1+(y2-y1)*conn.t;
+      const g=ctx.createRadialGradient(px,py,0,px,py,6);g.addColorStop(0,'rgba(0,212,255,.9)');g.addColorStop(1,'rgba(0,212,255,0)');
+      ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    });
+    animId=requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',()=>{resize();});
+  resize(); draw();
+  window._stopLoginAnim=()=>cancelAnimationFrame(animId);
+})();
+
+/* ══════════════════════════════════════
+   PASSWORD TOGGLE
+══════════════════════════════════════ */
+const pwInput=document.getElementById('password');
+const toggleBtn=document.getElementById('togglePw');
+const eyeIcon=document.getElementById('eyeIcon');
+const eyeOpen=`<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+const eyeClosed=`<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+toggleBtn.addEventListener('click',()=>{const h=pwInput.type==='password';pwInput.type=h?'text':'password';eyeIcon.innerHTML=h?eyeClosed:eyeOpen;});
+
+/* ══════════════════════════════════════
+   LOGIN FORM
+══════════════════════════════════════ */
+document.getElementById('loginForm').addEventListener('submit',async(e)=>{
+  e.preventDefault();
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('password').value;
+  const errMsg=document.getElementById('errorMsg');
+  const errTxt=document.getElementById('errorText');
+  const btn=document.getElementById('submitBtn');
+  errMsg.classList.remove('visible');
+  if(!email||!pass){errTxt.textContent='Please enter your email and password.';errMsg.classList.add('visible');return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){errTxt.textContent='Please enter a valid email address.';errMsg.classList.add('visible');return;}
+  btn.classList.add('loading');btn.disabled=true;
+  await new Promise(r=>setTimeout(r,1400));
+  if(email==='wrong@demo.com'){
+    btn.classList.remove('loading');btn.disabled=false;
+    errTxt.textContent='Credentials not recognized. Check your email or contact your admin.';errMsg.classList.add('visible');return;
+  }
+  // success → launch dashboard
+  const name=email.split('@')[0];
+  launchDashboard(email,name);
+});
+
+/* ══════════════════════════════════════
+   LAUNCH DASHBOARD
+══════════════════════════════════════ */
+function launchDashboard(email,rawName){
+  const name=rawName.charAt(0).toUpperCase()+rawName.slice(1);
+  const initials=name.slice(0,2).toUpperCase();
+  document.getElementById('userName').textContent=name;
+  document.getElementById('userAvatar').textContent=initials;
+  document.getElementById('settingsUserName').textContent=name+' (You)';
+  document.getElementById('settingsEmail').textContent=email;
+
+  const loginScr=document.getElementById('loginScreen');
+  const dashScr=document.getElementById('dashScreen');
+  loginScr.classList.add('hiding');
+  setTimeout(()=>{
+    loginScr.style.display='none';
+    window._stopLoginAnim&&window._stopLoginAnim();
+    dashScr.classList.add('visible');
+    setTimeout(()=>{dashScr.classList.add('shown');initDashboard();},20);
+  },500);
+}
+
+/* ══════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════ */
+function initDashboard(){
+  // Nav
+  document.querySelectorAll('.nav-item[data-page]').forEach(item=>{
+    item.addEventListener('click',()=>{
+      document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      item.classList.add('active');
+      document.getElementById('page-'+item.dataset.page).classList.add('active');
+      if(item.dataset.page==='slotmap') drawFloor();
+      if(item.dataset.page==='copick') drawGraph();
+    });
+  });
+  document.getElementById('logoutBtn').addEventListener('click',()=>{
+    const dash=document.getElementById('dashScreen');
+    dash.classList.remove('shown');
+    setTimeout(()=>{dash.classList.remove('visible');dash.style.display='none';
+      const login=document.getElementById('loginScreen');
+      login.style.display='';login.classList.remove('hiding');
+      document.getElementById('email').value='';document.getElementById('password').value='';
+      document.getElementById('submitBtn').disabled=false;document.getElementById('submitBtn').classList.remove('loading');
+    },400);
+  });
+  drawSlotMap();
+  buildInventory();
+}
+
+/* ══════════════════════════════════════
+   SLOT HEAT MAP (Overview)
+══════════════════════════════════════ */
+function drawSlotMap(){
+  const canvas=document.getElementById('slotMapCanvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth;
+  canvas.width=W; canvas.height=240;
+  const cols=40,rows=10,cw=W/cols,ch=240/rows;
+  const types=['hot','warm','cold','miss','pending'];
+  const colors={'hot':'#00D4FF','warm':'#1E3A5F','cold':'#0A1628','miss':'#FF4D6D','pending':'#FFB830'};
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const rnd=Math.random();
+    let type=rnd<.12?'hot':rnd<.35?'warm':rnd<.05?'miss':rnd<.08?'pending':'cold';
+    const alpha=type==='hot'?(0.5+Math.random()*.5):type==='warm'?(0.3+Math.random()*.3):type==='cold'?.15:1;
+    ctx.fillStyle=colors[type];
+    ctx.globalAlpha=alpha;
+    ctx.fillRect(c*cw+1,r*ch+1,cw-2,ch-2);
+    ctx.globalAlpha=1;
+    if(type==='hot'){
+      ctx.strokeStyle='rgba(0,212,255,0.6)';ctx.lineWidth=1;
+      ctx.strokeRect(c*cw+1,r*ch+1,cw-2,ch-2);
+    }
+  }
+}
+
+/* ══════════════════════════════════════
+   FLOOR PLAN (Slot Map page)
+══════════════════════════════════════ */
+function drawFloor(){
+  const canvas=document.getElementById('floorCanvas');
+  if(!canvas)return;
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width-40; canvas.height=rect.height-80;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.fillStyle='#0A1628';ctx.fillRect(0,0,W,H);
+  const zones=[
+    {label:'Zone A',x:.02,y:.05,w:.45,h:.42,color:'rgba(0,212,255,.08)',stroke:'rgba(0,212,255,.3)'},
+    {label:'Zone B',x:.50,y:.05,w:.48,h:.42,color:'rgba(30,58,95,.2)',stroke:'rgba(139,163,193,.2)'},
+    {label:'Zone C',x:.02,y:.54,w:.28,h:.42,color:'rgba(0,229,160,.06)',stroke:'rgba(0,229,160,.2)'},
+    {label:'Zone D',x:.32,y:.54,w:.18,h:.42,color:'rgba(255,184,48,.05)',stroke:'rgba(255,184,48,.2)'},
+    {label:'Zone E',x:.52,y:.54,w:.46,h:.42,color:'rgba(30,58,95,.12)',stroke:'rgba(139,163,193,.15)'},
+  ];
+  zones.forEach(z=>{
+    const x=z.x*W,y=z.y*H,w=z.w*W,h=z.h*H;
+    ctx.fillStyle=z.color;ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=z.stroke;ctx.lineWidth=1.5;ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='rgba(255,255,255,.5)';ctx.font=`bold 11px Space Grotesk,sans-serif`;
+    ctx.fillText(z.label,x+10,y+16);
+    // draw aisles
+    const aisles=Math.floor(w/48);
+    for(let a=1;a<aisles;a++){
+      ctx.strokeStyle='rgba(139,163,193,.08)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x+a*(w/aisles),y);ctx.lineTo(x+a*(w/aisles),y+h);ctx.stroke();
+    }
+    // draw slots
+    const scols=Math.floor(w/14),srows=Math.floor(h/14);
+    for(let sr=1;sr<srows;sr++) for(let sc=0;sc<scols;sc++){
+      const sx=x+sc*(w/scols)+2,sy=y+sr*(h/srows)+2,sw=w/scols-4,sh=h/srows-4;
+      const rnd=Math.random();
+      ctx.fillStyle=rnd<.08?'rgba(0,212,255,.5)':rnd<.03?'rgba(255,77,109,.6)':rnd<.05?'rgba(255,184,48,.4)':'rgba(30,58,95,.5)';
+      ctx.fillRect(sx,sy,sw,sh);
+    }
+  });
+  // receiving dock
+  ctx.fillStyle='rgba(139,163,193,.08)';ctx.fillRect(W*.3,H*.46,W*.4,H*.07);
+  ctx.strokeStyle='rgba(139,163,193,.2)';ctx.lineWidth=1;ctx.strokeRect(W*.3,H*.46,W*.4,H*.07);
+  ctx.fillStyle='rgba(255,255,255,.35)';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Receiving / Dispatch Dock',W*.5,H*.5);ctx.textAlign='left';
+}
+
+/* ══════════════════════════════════════
+   CO-PICK GRAPH
+══════════════════════════════════════ */
+function drawGraph(){
+  const canvas=document.getElementById('graphCanvas');
+  if(!canvas)return;
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width-40; canvas.height=rect.height-80;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+
+  const nodeCount=28;
+  const nodes=[];
+  const clusters=[{cx:.25,cy:.3},{cx:.75,cy:.3},{cx:.5,cy:.7},{cx:.2,cy:.72},{cx:.8,cy:.68}];
+  for(let i=0;i<nodeCount;i++){
+    const cl=clusters[i%clusters.length];
+    nodes.push({
+      id:i,x:(cl.cx+(.5-Math.random())*.35)*W,y:(cl.cy+(.5-Math.random())*.3)*H,
+      r:6+Math.random()*10,vx:0,vy:0,
+      label:`SKU-${String(i*17+41).padStart(4,'0')}`,
+      hot:Math.random()<.3
+    });
+  }
+
+  const edges=[];
+  for(let i=0;i<nodeCount;i++) for(let j=i+1;j<nodeCount;j++)
+    if(Math.floor(i/2)===Math.floor(j/2)||Math.random()<.06)
+      edges.push({a:i,b:j,w:.3+Math.random()*.7});
+
+  let drag=null,mx=0,my=0;
+  canvas.addEventListener('mousedown',e=>{
+    const rect2=canvas.getBoundingClientRect();
+    mx=e.clientX-rect2.left;my=e.clientY-rect2.top;
+    nodes.forEach(n=>{if(Math.hypot(n.x-mx,n.y-my)<n.r+4){drag=n;n.fx=n.x;n.fy=n.y;}});
+  });
+  canvas.addEventListener('mousemove',e=>{
+    const rect2=canvas.getBoundingClientRect();
+    mx=e.clientX-rect2.left;my=e.clientY-rect2.top;
+    if(drag){drag.x=mx;drag.y=my;}
+  });
+  canvas.addEventListener('mouseup',()=>{drag=null;});
+
+  let gframe=0;
+  function tick(){
+    gframe++;
+    // simple repulsion
+    for(let i=0;i<nodeCount;i++) for(let j=i+1;j<nodeCount;j++){
+      const dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y;
+      const d=Math.max(Math.hypot(dx,dy),1);
+      const f=400/(d*d);
+      nodes[i].vx-=dx*f;nodes[i].vy-=dy*f;
+      nodes[j].vx+=dx*f;nodes[j].vy+=dy*f;
+    }
+    // attraction along edges
+    edges.forEach(e=>{
+      const a=nodes[e.a],b=nodes[e.b];
+      const dx=b.x-a.x,dy=b.y-a.y,d=Math.max(Math.hypot(dx,dy),1);
+      const f=(d-80)*0.01*e.w;
+      a.vx+=dx*f;a.vy+=dy*f;b.vx-=dx*f;b.vy-=dy*f;
+    });
+    // center gravity
+    nodes.forEach(n=>{n.vx+=(W/2-n.x)*.002;n.vy+=(H/2-n.y)*.002;});
+    // apply velocity
+    nodes.forEach(n=>{
+      if(drag===n)return;
+      n.vx*=.85;n.vy*=.85;
+      n.x=Math.max(n.r,Math.min(W-n.r,n.x+n.vx));
+      n.y=Math.max(n.r,Math.min(H-n.r,n.y+n.vy));
+    });
+
+    ctx.clearRect(0,0,W,H);
+    // edges
+    edges.forEach(e=>{
+      const a=nodes[e.a],b=nodes[e.b];
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.strokeStyle=`rgba(0,212,255,${e.w*.25})`;ctx.lineWidth=e.w*2;ctx.stroke();
+    });
+    // nodes
+    nodes.forEach(n=>{
+      ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fillStyle=n.hot?'rgba(0,212,255,.9)':'rgba(30,58,95,.9)';
+      ctx.fill();
+      ctx.strokeStyle=n.hot?'rgba(0,212,255,1)':'rgba(139,163,193,.4)';
+      ctx.lineWidth=1.5;ctx.stroke();
+      // hover label
+      if(Math.hypot(n.x-mx,n.y-my)<n.r+8){
+        ctx.fillStyle='rgba(0,212,255,.9)';ctx.font='11px Space Grotesk,sans-serif';
+        ctx.textAlign='center';
+        const tw=ctx.measureText(n.label).width+12;
+        ctx.fillStyle='rgba(10,22,40,.9)';ctx.fillRect(n.x-tw/2,n.y-n.r-22,tw,16);
+        ctx.fillStyle='#00D4FF';ctx.fillText(n.label,n.x,n.y-n.r-10);
+        ctx.textAlign='left';
+      }
+    });
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+/* ══════════════════════════════════════
+   INVENTORY TABLE
+══════════════════════════════════════ */
+const INV_DATA=(()=>{
+  const names=['AA Batteries 4-pk','Cordless Drill 18V','Safety Gloves L','Hi-Vis Vest XL','Box Tape 50m','Drill Bits Set','Pallet Wrap Film','Label Gun Pro','Cable Ties 200pk','Foam Padding Roll','LED Work Light','Extension Cord 10m','Safety Goggles','Hard Hat White','Floor Tape Red','Zip Ties 50pk','Hand Sanitizer 1L','Nitrile Gloves M','First Aid Kit','Dust Masks 20pk'];
+  const zones=['Zone A','Zone B','Zone C','Zone D','Zone E'];
+  const statuses=['Optimal','Optimal','Optimal','Misslotted','Low Stock'];
+  const rows=[];
+  for(let i=0;i<80;i++){
+    const n=names[i%names.length];
+    rows.push({
+      sku:`SKU-${String(i*17+41).padStart(4,'0')}`,
+      name:n+(i>=names.length?` (v${Math.floor(i/names.length)+2})`:''),
+      zone:zones[i%zones.length],
+      slot:`${['A','B','C','D','E'][i%5]}${String(Math.floor(i/5)+1).padStart(2,'0')}-${String(i%12+1).padStart(3,'0')}`,
+      stock:Math.floor(Math.random()*200)+1,
+      freq:Math.floor(Math.random()*500)+10,
+      status:statuses[i%statuses.length]
+    });
+  }
+  return rows;
+})();
+
+function buildInventory(){
+  renderInv(INV_DATA);
+  document.getElementById('invSearch').addEventListener('input',filterInv);
+  document.getElementById('invZone').addEventListener('change',filterInv);
+  document.getElementById('invStatus').addEventListener('change',filterInv);
+}
+
+function filterInv(){
+  const q=document.getElementById('invSearch').value.toLowerCase();
+  const z=document.getElementById('invZone').value;
+  const s=document.getElementById('invStatus').value;
+  const filtered=INV_DATA.filter(r=>
+    (!q||r.sku.toLowerCase().includes(q)||r.name.toLowerCase().includes(q))&&
+    (!z||r.zone===z)&&(!s||r.status===s)
+  );
+  renderInv(filtered);
+}
+
+function renderInv(data){
+  const body=document.getElementById('invBody');
+  const cls={'Optimal':'green','Misslotted':'red','Low Stock':'amber'};
+  body.innerHTML=data.slice(0,60).map(r=>`
+    <tr>
+      <td style="font-family:'Space Grotesk',sans-serif;font-size:12px;color:var(--cyan)">${r.sku}</td>
+      <td>${r.name}</td>
+      <td>${r.zone}</td>
+      <td style="font-family:'Space Grotesk',sans-serif;font-size:12px">${r.slot}</td>
+      <td>${r.stock}</td>
+      <td>${r.freq}/wk</td>
+      <td><span class="tbl-badge ${cls[r.status]}">${r.status}</span></td>
+    </tr>`).join('');
+}
+</script>
+</body>
+</html>
